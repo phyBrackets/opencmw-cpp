@@ -15,7 +15,6 @@
 
 using namespace opencmw::majordomo;
 using namespace opencmw::DNS;
-// using namespace opencmw::client;
 using namespace std::chrono_literals;
 using opencmw::majordomo::Worker;
 using URI = opencmw::URI<>;
@@ -27,14 +26,13 @@ TEST_CASE("Test dns", "DNS") {
     const auto brokerAddress   = opencmw::URI<opencmw::STRICT>("inproc://testbroker");
     Broker     broker("testbroker", settings);
     REQUIRE(broker.bind(brokerAddress, BindOption::Router));
-    Dns<"DnsService">     DnsWorker(broker);
+    Dns<"DnsService">     dnsWorker(broker);
     Dns<"AnotherService"> worker(broker);
-    // DnsWorker.registerDnsAddress(opencmw::URI<>("https://127.0.0.1:8080"));
-    DnsWorker.registerWithDns(opencmw::URI<>("inproc://port1"));
-    DnsWorker.registerWithDns(opencmw::URI<>("inproc://port1:1"));
+    dnsWorker.registerWithDns(opencmw::URI<>("inproc://port1"));
+    dnsWorker.registerWithDns(opencmw::URI<>("inproc://port1:1"));
     worker.registerWithDns(opencmw::URI<>("inproc://port2"));
 
-    RunInThread dnsWorkerRun(DnsWorker);
+    RunInThread dnsWorkerRun(dnsWorker);
     RunInThread workerRun(worker);
     RunInThread brokerRun(broker);
     REQUIRE(waitUntilServiceAvailable(broker.context, "DnsService"));
@@ -57,7 +55,6 @@ TEST_CASE("Test dns", "DNS") {
         REQUIRE(reply->isValid());
         REQUIRE(reply->command() == Command::Final);
         REQUIRE(reply->serviceName() == "DnsService");
-       // REQUIRE(reply->body().empty());
        std::cout << reply->body();
 
     }
@@ -76,7 +73,6 @@ TEST_CASE("Test dns", "DNS") {
         REQUIRE(reply->command() == Command::Final);
         REQUIRE(reply->serviceName() == "AnotherService");
         REQUIRE(reply->body() == "{\n\"uris\": [\"inproc://port2/AnotherService\"]\n}");
-        // REQUIRE(reply->body().empty());
     }
 
     // Request with the Broker Name
@@ -111,6 +107,5 @@ TEST_CASE("Test dns", "DNS") {
         REQUIRE(reply->command() == Command::Final);
         REQUIRE(reply->serviceName() == "DnsService");
         REQUIRE(reply->body() == "{\n\"uris\": [\"inproc://ip1/NewDnsService?signal_name=A\", \"inproc://ip2/NewDnsService?signal_name=A\"]\n}");
-        // REQUIRE(reply->body().empty());
     }
 }
