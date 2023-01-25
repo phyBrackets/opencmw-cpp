@@ -34,14 +34,14 @@ using namespace opencmw::majordomo;
 using namespace std::chrono_literals;
 
 struct Request {
-    std::string brokerName;
-    std::string signalName;
-    std::string serviceName;
+    std::string           brokerName;
+    std::string           signalName;
+    std::string           serviceName;
     std::set<std::string> uris;
     std::set<std::string> signalNames;
-   // std::unordered_map<std::string, std::string> meta;
+    // std::unordered_map<std::string, std::string> meta;
 };
-ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName/*, meta*/)
+ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName /*, meta*/)
 
 struct Reply {
     // std::set<opencmw::URI<opencmw::RELAXED>> uris;
@@ -64,8 +64,8 @@ using BrokerMessage = opencmw::majordomo::BasicMdpMessage<
 namespace detail {
 struct DnsServiceInfo {
     std::set<std::string> uris;
-     std::set<std::string> signalNames;
-     // std::unordered_map<std::string, std::string> meta;
+    std::set<std::string> signalNames;
+    // std::unordered_map<std::string, std::string> meta;
     DnsServiceInfo() = default;
 };
 
@@ -96,7 +96,7 @@ public:
 
 private:
     // Prevent copy constructor and assignment operator
-    DnsStorage(DnsStorage const &) = delete;
+    DnsStorage(DnsStorage const &)            = delete;
     DnsStorage &operator=(DnsStorage const &) = delete;
 };
 
@@ -121,7 +121,7 @@ private:
         }
                   detail::DnsServiceItem item = iter->second;
                   for (auto const &[brokerName, brokerInfo] : item.brokers) {
-                 out.uris.insert(brokerInfo.uris.begin(), brokerInfo.uris.end());
+                      out.uris.insert(brokerInfo.uris.begin(), brokerInfo.uris.end());
         }
     }
 };
@@ -164,21 +164,21 @@ private:
     DnsStorage    &storage = DnsStorage::getInstance();
 
     void           processRequest(const Request &in, Reply &out) {
-                     
-                for(auto& [serviceName, service]: storage._dnsCache) {
-    for(auto& [brokerName, broker]: service.brokers) {
-        if(broker.signalNames.find(in.signalName) != broker.signalNames.end()) {
-            std::string signalName = in.signalName;
-            std::vector<std::string> tempContainer(broker.uris.begin(), broker.uris.end());
-            std::transform(tempContainer.begin(), tempContainer.end(), tempContainer.begin(),
-                [signalName](const std::string &uri) {
-                    return uri + "?" + "signal_name" + "=" + signalName;
-                });
-            out.uris.insert(tempContainer.begin(), tempContainer.end());
-        }
-    }
+                  for (auto &[serviceName, service] : storage._dnsCache) {
+                      for (auto &[brokerName, broker] : service.brokers) {
+                          if (broker.signalNames.find(in.signalName) != broker.signalNames.end()) {
+                              std::string              signalName = in.signalName;
+                              std::vector<std::string> tempContainer(broker.uris.begin(), broker.uris.end());
+                              std::transform(tempContainer.begin(), tempContainer.end(), tempContainer.begin(),
+                                      [signalName](const std::string &uri) {
+                                return uri + "?" + "signal_name" + "=" + signalName;
+                            });
+                              out.uris.insert(tempContainer.begin(), tempContainer.end());
+                }
             }
         }
+    }
+        
 };
 
 template<units::basic_fixed_string serviceName_, typename... Meta_>
@@ -194,15 +194,15 @@ public:
         : super_t(broker, {}), brokerName(std::move(broker.brokerName)) {
         super_t::setCallback([this](
                                      const RequestContext &rawCtx,
-                                     const DnsContext &dnsIn, const Request &reqregIn, 
+                                     const DnsContext &dnsIn, const Request &reqregIn,
                                      DnsContext &dnsOut, Reply &out) {
             if (rawCtx.request.command() == Command::Get) {
                 fmt::print("worker recieved 'get' request\n");
                 handleGetRequest(dnsIn, reqregIn, out);
-                //fmt::print("{}, {}", In.brokerName, In.serviceName);
+                // fmt::print("{}, {}", In.brokerName, In.serviceName);
             } else if (rawCtx.request.command() == Command::Set) {
                 fmt::print("worker received 'set' request\n");
-                 handleSetRequest(reqregIn, dnsOut, out);
+                handleSetRequest(reqregIn, dnsOut, out);
             }
         });
     }
@@ -236,19 +236,19 @@ private:
         }
     }
 
-  void handleSetRequest(const Request &registerIn, DnsContext &dnsOut, Reply &out) {
+    void handleSetRequest(const Request &registerIn, DnsContext &dnsOut, Reply &out) {
         auto [iter, inserted] = storage._dnsCache.try_emplace(registerIn.serviceName, detail::DnsServiceItem());
-        auto &item = iter->second;
+        auto &item            = iter->second;
         item.brokers.try_emplace(brokerName, detail::DnsServiceInfo());
         std::string serviceName = registerIn.serviceName;
-        std::transform(registerIn.uris.begin(), registerIn.uris.end(), std::inserter(item.brokers[brokerName].uris, item.brokers[brokerName].uris.begin()), 
-    [serviceName](const std::string& uri) {
-        return uri + "/" + serviceName;
-    });
-    
-    item.brokers[brokerName].signalNames.insert(registerIn.signalNames.begin(), registerIn.signalNames.end());
-   // item.brokers[brokerName].meta.emplace(registerIn.meta.begin(), registerIn.meta.end());
-  }
+        std::transform(registerIn.uris.begin(), registerIn.uris.end(), std::inserter(item.brokers[brokerName].uris, item.brokers[brokerName].uris.begin()),
+                [serviceName](const std::string &uri) {
+                    return uri + "/" + serviceName;
+                });
+
+        item.brokers[brokerName].signalNames.insert(registerIn.signalNames.begin(), registerIn.signalNames.end());
+        // item.brokers[brokerName].meta.emplace(registerIn.meta.begin(), registerIn.meta.end());
+    }
 };
 } // namespace opencmw::DNS
 #endif

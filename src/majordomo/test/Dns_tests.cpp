@@ -59,6 +59,24 @@ TEST_CASE("Test dns", "DNS") {
 
     }
 
+    // Register with the Service Name
+
+    {
+        using opencmw::majordomo::Command;
+        auto request = MdpMessage::createClientMessage(Command::Set);
+        request.setServiceName("DnsService", static_tag);
+
+        request.setBody("{ \"uris\": [\"inproc://ip1\", \"inproc://ip2\"], \"serviceName\": \"NewDnsService\", \"signalNames\": [\"A\", \"B\"]}", static_tag);
+        client.send(request);
+
+        const auto reply = client.tryReadOne();
+        REQUIRE(reply.has_value());
+        REQUIRE(reply->isValid());
+        REQUIRE(reply->command() == Command::Final);
+        REQUIRE(reply->serviceName() == "DnsService");
+        std::cout << reply->body();
+    }
+
     {
         using opencmw::majordomo::Command;
         auto request = MdpMessage::createClientMessage(Command::Get);
@@ -89,7 +107,6 @@ TEST_CASE("Test dns", "DNS") {
         REQUIRE(reply->isValid());
         REQUIRE(reply->command() == Command::Final);
         REQUIRE(reply->body() == "{\n\"uris\": [\"inproc://ip1/NewDnsService\", \"inproc://ip2/NewDnsService\", \"inproc://port1/DnsService\", \"inproc://port1:1/DnsService\", \"inproc://port2/AnotherService\"]\n}");
-
     }
 
     // Request With the Signal Name
