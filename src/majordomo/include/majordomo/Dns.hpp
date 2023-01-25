@@ -39,15 +39,13 @@ struct Request {
     std::string serviceName;
     std::set<std::string> uris;
     std::set<std::string> signalNames;
-    // std::unordered_map<std::string, std::string> meta;
+   // std::unordered_map<std::string, std::string> meta;
 };
-ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName)
+ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName/*, meta*/)
 
 struct Reply {
     // std::set<opencmw::URI<opencmw::RELAXED>> uris;
     std::set<std::string> uris;
-    // std::vector<KeyValue> meta;
-    //  std::unordered_map<std::string, std::vector<std::string>> meta;
 };
 ENABLE_REFLECTION_FOR(Reply, uris)
 
@@ -67,7 +65,7 @@ namespace detail {
 struct DnsServiceInfo {
     std::set<std::string> uris;
      std::set<std::string> signalNames;
-    //  std::unordered_map<std::string, std::vector<std::string>> meta;
+     // std::unordered_map<std::string, std::string> meta;
     DnsServiceInfo() = default;
 };
 
@@ -83,18 +81,6 @@ struct DnsServiceItem {
 
 } // namespace detail
 
-/*class ServiceRegistrationMessage {
- public: 
-  ServiceRegistrationMessage() = default;
-  ServiceRegistrationMessage(const std::string &name, const std::set<std::string> &serviceUris, const std::set<std::string> &serviceSignals, const std::map<std::string, std::string> &serviceMeta) 
-                            : serviceName(name), uris(serviceUris), signalNames(serviceSignals), meta(serviceMeta) {}
- private: 
-   std::string serviceName;
-  std::set<std::string> uris;
-  std::set<std::string> signalNames;
-  std::map<std::string, std::string> meta;
-
-};*/
 class DnsStorage {
 public:
     DnsStorage() = default;
@@ -135,9 +121,7 @@ private:
         }
                   detail::DnsServiceItem item = iter->second;
                   for (auto const &[brokerName, brokerInfo] : item.brokers) {
-                 // std::copy(brokerInfo.uris.begin(), brokerInfo.end(), std::inserter(outUris, outUris.begin()));
                  out.uris.insert(brokerInfo.uris.begin(), brokerInfo.uris.end());
-                      // Out.meta[serviceInfo.meta.first].push_back(serviceInfo.meta.second);
         }
     }
 };
@@ -184,13 +168,8 @@ private:
                 for(auto& [serviceName, service]: storage._dnsCache) {
     for(auto& [brokerName, broker]: service.brokers) {
         if(broker.signalNames.find(in.signalName) != broker.signalNames.end()) {
-            out.uris.insert(broker.uris.begin(), broker.uris.end());
             std::string signalName = in.signalName;
-            /*std::transform(out.uris.begin(), out.uris.end(), out.uris.begin(),
-                [signalName](const std::string &uri) {
-                    return uri + "?" + "signal_name" + "=" + signalName;
-                });*/ 
-            std::vector<std::string> tempContainer(out.uris.begin(), out.uris.end());
+            std::vector<std::string> tempContainer(broker.uris.begin(), broker.uris.end());
             std::transform(tempContainer.begin(), tempContainer.end(), tempContainer.begin(),
                 [signalName](const std::string &uri) {
                     return uri + "?" + "signal_name" + "=" + signalName;
@@ -198,8 +177,6 @@ private:
             out.uris.insert(tempContainer.begin(), tempContainer.end());
         }
     }
-                // Out.meta[broker->second.services[In.serviceName].meta.first].push_back(broker->second.services[In.serviceName].meta.second);
-                //}
             }
         }
 };
@@ -260,18 +237,17 @@ private:
     }
 
   void handleSetRequest(const Request &registerIn, DnsContext &dnsOut, Reply &out) {
-       // storage._dnsAddress.emplace(registerIn.uris.begin(), registerIn.uris.end());
         auto [iter, inserted] = storage._dnsCache.try_emplace(registerIn.serviceName, detail::DnsServiceItem());
         auto &item = iter->second;
         item.brokers.try_emplace(brokerName, detail::DnsServiceInfo());
         std::string serviceName = registerIn.serviceName;
-       // Item.brokers[brokerName].uris.insert()
         std::transform(registerIn.uris.begin(), registerIn.uris.end(), std::inserter(item.brokers[brokerName].uris, item.brokers[brokerName].uris.begin()), 
     [serviceName](const std::string& uri) {
         return uri + "/" + serviceName;
     });
     
     item.brokers[brokerName].signalNames.insert(registerIn.signalNames.begin(), registerIn.signalNames.end());
+   // item.brokers[brokerName].meta.emplace(registerIn.meta.begin(), registerIn.meta.end());
   }
 };
 } // namespace opencmw::DNS

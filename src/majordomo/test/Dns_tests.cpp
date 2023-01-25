@@ -42,14 +42,14 @@ TEST_CASE("Test dns", "DNS") {
     TestNode<MdpMessage> client(broker.context);
     REQUIRE(client.connect(opencmw::majordomo::INTERNAL_ADDRESS_BROKER));
      
-    // Request with the Service Name
+    // Register with the Service Name
 
     {
       using opencmw::majordomo::Command;
         auto request = MdpMessage::createClientMessage(Command::Set);
         request.setServiceName("DnsService", static_tag);
 
-        request.setBody("{ \"uris\": [\"inproc://ip1\", \"inproc://ip2\"], \"serviceName\": \"NewDnsService\", \"signalNames\": [\"A\", \"B\"] }", static_tag);
+        request.setBody("{ \"uris\": [\"inproc://ip1\", \"inproc://ip2\"], \"serviceName\": \"NewDnsService\", \"signalNames\": [\"A\", \"B\"]}", static_tag);
         client.send(request);
         
          const auto reply = client.tryReadOne();
@@ -92,7 +92,7 @@ TEST_CASE("Test dns", "DNS") {
         REQUIRE(reply.has_value());
         REQUIRE(reply->isValid());
         REQUIRE(reply->command() == Command::Final);
-        REQUIRE(reply->body() == "{\n\"uris\": [\"inproc://port2/AnotherService\", \"inproc://port1/DnsService\", \"inproc://port1:1/DnsService\", \"inproc://ip1/NewDnsService\", \"inproc://ip2/NewDnsService\"]\n}");
+        REQUIRE(reply->body() == "{\n\"uris\": [\"inproc://ip1/NewDnsService\", \"inproc://ip2/NewDnsService\", \"inproc://port1/DnsService\", \"inproc://port1:1/DnsService\", \"inproc://port2/AnotherService\"]\n}");
 
     }
 
