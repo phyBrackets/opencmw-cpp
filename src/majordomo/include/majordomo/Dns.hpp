@@ -33,15 +33,26 @@ using namespace std::string_literals;
 using namespace opencmw::majordomo;
 using namespace std::chrono_literals;
 
+struct MetaData {
+    int         sampleRate;
+    std::string type;
+    // std::string c;
+};
+
 struct Request {
     std::string           brokerName;
     std::string           signalName;
     std::string           serviceName;
     std::set<std::string> uris;
     std::set<std::string> signalNames;
-    // std::unordered_map<std::string, std::string> meta;
+    std::set<std::string> sampleRates;
+    std::set<std::string> types;
+    // std::vector<std::string> metaC;
+    // std::string k;
+    // std::string v;
+    // std::vector<std::string> meta = {k, v};
 };
-ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName /*, meta*/)
+ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName, sampleRates, types)
 
 struct Reply {
     // std::set<opencmw::URI<opencmw::RELAXED>> uris;
@@ -62,10 +73,15 @@ using BrokerMessage = opencmw::majordomo::BasicMdpMessage<
         opencmw::majordomo::MessageFormat::WithSourceId>;
 
 namespace detail {
+
+struct MetaInfo {
+    std::set<std::string> sampleRate;
+    std::set<std::string> type;
+};
 struct DnsServiceInfo {
-    std::set<std::string> uris;
-    std::set<std::string> signalNames;
-    // std::unordered_map<std::string, std::string> meta;
+    std::set<std::string>                     uris;
+    std::set<std::string>                     signalNames;
+    std::unordered_map<std::string, MetaInfo> meta;
     DnsServiceInfo() = default;
 };
 
@@ -163,22 +179,40 @@ private:
     Reply         &out_;
     DnsStorage    &storage = DnsStorage::getInstance();
 
-    void           processRequest(const Request &in, Reply &out) {
+    void           processRequest(const Request &requestIn, Reply &replyOut) {
                   for (auto &[serviceName, service] : storage._dnsCache) {
                       for (auto &[brokerName, broker] : service.brokers) {
-                          if (broker.signalNames.find(in.signalName) != broker.signalNames.end()) {
-                              std::string              signalName = in.signalName;
+                          if (broker.signalNames.find(requestIn.signalName) != broker.signalNames.end()) {
+                              std::string              signalName = requestIn.signalName;
                               std::vector<std::string> tempContainer(broker.uris.begin(), broker.uris.end());
                               std::transform(tempContainer.begin(), tempContainer.end(), tempContainer.begin(),
-                                      [signalName](const std::string &uri) {
-                                return uri + "?" + "signal_name" + "=" + signalName;
+                                      [signalName, &broker](const std::string &uri) {
+                                std::string result = uri + "?" + "signal_name" + "=" + signalName;
+                                auto        metaIt = broker.meta.find(signalName);
+                                if (metaIt != broker.meta.end()) {
+                                    const auto &meta = metaIt->second;
+                                    if (!meta.type.empty()) {
+                                        auto typeIt = meta.type.begin();
+                                        result += "&type=" + *typeIt;
+                                        for (typeIt++; typeIt != meta.type.end(); ++typeIt) {
+                                            result += "," + *typeIt;
+                                        }
+                                    }
+                                    if (!meta.sampleRate.empty()) {
+                                        auto sampleRateIt = meta.sampleRate.begin();
+                                        result += "&sample_rate=" + *sampleRateIt;
+                                        for (sampleRateIt++; sampleRateIt != meta.sampleRate.end(); ++sampleRateIt) {
+                                            result += "," + *sampleRateIt;
+                                        }
+                                    }
+                                }
+                                return result;
                             });
-                              out.uris.insert(tempContainer.begin(), tempContainer.end());
+                              out_.uris.insert(tempContainer.begin(), tempContainer.end());
                 }
             }
         }
     }
-        
 };
 
 template<units::basic_fixed_string serviceName_, typename... Meta_>
@@ -218,7 +252,6 @@ public:
         item.brokers[brokerName].uris.insert(address.str() + "/" + service_name);
     }
 
-
 private:
     using requestBrokerName_t  = RequestBrokerName<serviceName_, Meta_...>;
     using requestSignalName_t  = RequestSignalName<serviceName_, Meta_...>;
@@ -231,7 +264,8 @@ private:
                    requestServiceName_t worker(requestIn, out);
         } else if (requestIn.serviceName.empty() && !requestIn.brokerName.empty() && requestIn.signalName.empty()) {
                    requestBrokerName_t worker(requestIn, out);
-        } else if (!requestIn.signalName.empty() && !requestIn.serviceName.empty() && requestIn.brokerName.empty()) {
+        } else if (!requestIn.signalName.empty() && !requestIn.serviceName.empty()
+                   && requestIn.brokerName.empty()) {
                    requestSignalName_t worker(requestIn, out);
         }
     }
@@ -247,7 +281,21 @@ private:
                 });
 
         item.brokers[brokerName].signalNames.insert(registerIn.signalNames.begin(), registerIn.signalNames.end());
-        // item.brokers[brokerName].meta.emplace(registerIn.meta.begin(), registerIn.meta.end());
+
+        auto itSampleRate = registerIn.sampleRates.begin();
+        auto itTypes      = registerIn.types.begin();
+        for (const auto &signalName : registerIn.signalNames) {
+            if (itSampleRate != registerIn.sampleRates.end() && (*itSampleRate) != " ") {
+                item.brokers[brokerName].meta[signalName].sampleRate.insert(*(itSampleRate++));
+            } else {
+                itSampleRate++;
+            }
+            if (itTypes != registerIn.types.end() && (*itTypes) != " ") {
+                item.brokers[brokerName].meta[signalName].type.insert(*(itTypes++));
+            } else {
+                itTypes++;
+            }
+        }
     }
 };
 } // namespace opencmw::DNS
