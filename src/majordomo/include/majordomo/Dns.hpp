@@ -33,12 +33,6 @@ using namespace std::string_literals;
 using namespace opencmw::majordomo;
 using namespace std::chrono_literals;
 
-struct MetaData {
-    int         sampleRate;
-    std::string type;
-    // std::string c;
-};
-
 struct Request {
     std::string           brokerName;
     std::string           signalName;
@@ -47,10 +41,6 @@ struct Request {
     std::set<std::string> signalNames;
     std::set<std::string> sampleRates;
     std::set<std::string> types;
-    // std::vector<std::string> metaC;
-    // std::string k;
-    // std::string v;
-    // std::vector<std::string> meta = {k, v};
 };
 ENABLE_REFLECTION_FOR(Request, brokerName, serviceName, signalNames, uris, signalName, sampleRates, types)
 
